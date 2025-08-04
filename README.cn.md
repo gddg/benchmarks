@@ -1,10 +1,12 @@
 # Benchmarks
 
+该项目是一个主要针对 [Aeron](https://github.com/aeron-io/aeron) 项目的各种基准测试的集合。
+这些基准测试可以分为两大类：
+
+
 This project is a collection of the various benchmarks primarily targeting the [Aeron](https://github.com/aeron-io/aeron) project.
 The benchmarks can be divided into two major categories:
 
-该项目是一个主要针对 [Aeron](https://github.com/aeron-io/aeron) 项目的各种基准测试的集合。
-这些基准测试可以分为两大类：
 
 
 
@@ -217,6 +219,27 @@ it will be placed under the `scripts` directory in the project folder.
 
 Here is an example of a wrapper script for the Aeron echo benchmarks.
 _NB: All the values in angle brackets (`<...>`) will have to be replaced with the actual values._
+
+
+运行基准测试最简单的方法是使用 `remote_*` 包装脚本，这些脚本通过 SSH 协议在远程机器上调用基准测试脚本。当脚本执行完成后，它会下载包含结果（直方图）的压缩包。
+
+运行基准测试需要以下步骤：
+
+1. 构建 tar 文件（见上文）。
+2. 将 tar 文件复制到目标机器并解压，例如：
+
+   ```bash
+   tar xf benchmarks.tar -C <destination_dir>
+   ```
+3. 在本地机器上创建一个包装脚本，用于设置目标基准测试所需的所有配置参数（见下方示例）。
+4. 运行第 3 步中创建的包装脚本。
+5. 执行完成后，包含结果的压缩文件会被下载到本地机器，默认会放置在项目文件夹下的 `scripts` 目录中。
+
+以下是一个 Aeron Echo 基准测试的包装脚本示例：
+*注意：所有尖括号 (`<...>`) 中的值都需要替换为实际值。*
+
+
+
 ```bash
 # SSH connection properties
 export SSH_CLIENT_USER=<SSH client machine user>
@@ -271,7 +294,7 @@ export SERVER_DESTINATION_CHANNEL="${CLIENT_DESTINATION_CHANNEL}"
 #"aeron/remote-echo-benchmarks" --client-drivers "c-dpdk" --server-drivers "c-dpdk" --mtu 8K --context "my-test"
 ```
 
-### Running benchmarks manually (single shot execution)
+### 手动运行基准测试（单次执行） Running benchmarks manually (single shot execution)
 
 The following steps are required to run the benchmarks:
 1. Build the tar file (see above).
@@ -281,6 +304,25 @@ The following steps are required to run the benchmarks:
 
 Here is an example of running the Aeron echo benchmark using the embedded Java MediaDriver on two nodes:
 server (`192.168.0.20`) and client (`192.168.0.10`).
+
+运行基准测试需要以下步骤：
+
+1. 构建 tar 文件（见上文）。
+2. 将 tar 文件复制到目标机器并解压，例如：
+
+   ```bash
+   tar xf benchmarks.tar -C <destination_dir>
+   ```
+3. 根据特定基准测试的文档，了解需要运行哪些脚本以及运行顺序。
+4. 运行 `benchmark-runner` 脚本，并指定要执行的**基准测试客户端脚本**。
+
+以下是在两台节点上使用内嵌 Java MediaDriver 运行 Aeron Echo 基准测试的示例：
+
+* 服务器节点：`192.168.0.20`
+* 客户端节点：`192.168.0.10`
+
+
+
 ```bash
 server:~/benchmarks/scripts$ JVM_OPTS="\
 -Dio.aeron.benchmarks.aeron.embedded.media.driver=true \
@@ -293,15 +335,27 @@ client:~/benchmarks/scripts$ JVM_OPTS="\
 -Dio.aeron.benchmarks.aeron.destination.channel=aeron:udp?endpoint=192.168.0.20:13001" \
 ./benchmark-runner --output-file "aeron-echo-test" --messages "100K" --message-length "288" --iterations 60 "aeron/echo-client"
 ```
+
+***注意**：在单次运行结束后，服务器端进程（例如 `aeron/echo-server`）将会退出。也就是说，如果需要再次手动运行（使用不同参数等），必须重新启动服务器进程。另一种方法是[通过 SSH 运行基准测试](#running-benchmarks-via-ssh-ie-automated-way)，即采用自动化方式运行。*
+
+
 _**Note**: At the end of a single run the server-side process (e.g. `aeron/echo-server`) will exit, i.e. in order to do
 another manual run (with different parameters etc.) one has to start the server process again. Alternative is to run the
 benchmarks [via the SSH](#running-benchmarks-via-ssh-ie-automated-way)._
 
-### Aggregating the results
+### 聚合结果 Aggregating the results
 
 To aggregate the results of the multiple runs into a single file use the `aggregate-results` script.
 
 For example if the ``results`` directory contains the following files:
+
+
+要将多次运行的结果聚合到一个文件中，可以使用 `aggregate-results` 脚本。
+
+例如，如果 `results` 目录包含以下文件：
+
+
+
 ```bash
 results
 ├── echo-test_rate=1000_batch=1_length=32-0.hdr
@@ -317,6 +371,7 @@ Running:
 ```
 
 Will produce the following result:
+
 ```bash
 results
 ├── echo-test_rate=1000_batch=1_length=32-0.hdr
@@ -327,13 +382,21 @@ results
 ├── echo-test_rate=1000_batch=1_length=32-combined.hdr
 └── echo-test_rate=1000_batch=1_length=32-report.hgrm
 ```
+
+其中，`echo-test_rate=1000_batch=1_length=32-combined.hdr` 是五次运行的聚合直方图，
+而 `echo-test_rate=1000_batch=1_length=32-report.hgrm` 是该聚合直方图的导出文件，可以使用 [http://hdrhistogram.github.io/HdrHistogram/plotFiles.html](http://hdrhistogram.github.io/HdrHistogram/plotFiles.html) 进行绘图。
+
+
 where `echo-test_rate=1000_batch=1_length=32-combined.hdr` is the
 aggregated histogram of five runs and the `echo-test_rate=1000_batch=1_length=32-report.hgrm` is an export of the
 aggregated histogram that can be plotted using http://hdrhistogram.github.io/HdrHistogram/plotFiles.html.
 
-### Plotting the results
+### 绘制结果图表 Plotting the results
 
 Aggregated results can be plotted using the `results-plotter.py` script which uses [hdr-plot](https://github.com/BrunoBonacci/hdr-plot) in order to produce latency plots of the histograms (the library needs to be installed in order to use the script).
+
+可以使用 `results-plotter.py` 脚本绘制聚合结果图表。该脚本使用了 [hdr-plot](https://github.com/BrunoBonacci/hdr-plot) 库来生成直方图的延迟图表（需要先安装该库才能使用此脚本）。
+
 
 Running
 
@@ -341,15 +404,44 @@ Running
 ./results-plotter.py results
 ```
 
+该脚本默认会生成按测试场景分组的直方图图表。也可以生成不同聚合方式的图表，并对目录中的直方图应用过滤条件进行绘制。
+
+运行 `./results-plotter.py`（不带参数）即可查看该绘图脚本的功能概览。
+
+
 will produce plots in which the histograms are grouped by test scenario by default. It is possible to produce graphs with a different kind of aggregation and to apply filters on the histograms to plot within a directory. Run `./results-plotter.py` (without arguments) in order to get an overview of the capabilities of the plotting script.
 
-## Running on Kubernetes
+## 在 Kubernetes 上运行 Running on Kubernetes
 
 You will need the following Docker containers built & injected into a repository that you can use.
 
 The tests currently support Aeron Echo testing with either Java or C-DPDK media drivers.
 
-### Components & Containers
+你需要构建以下 Docker 容器并将其推送到你可用的镜像仓库。
+
+当前测试支持使用 Java 或 C-DPDK 媒体驱动的 Aeron Echo 测试。
+
+
+### 组件与容器
+
+**基准测试：**
+
+这是本仓库中的代码，必须构建为 Docker 容器。
+
+**可选：Aeron DPDK 媒体驱动**
+
+高级功能。
+
+如果在测试配置中需要或启用，请参见 [https://github.com/aeron-io/premium-extensions/，或联系](https://github.com/aeron-io/premium-extensions/，或联系) [Adaptive](https://weareadaptive.com/) 的技术支持。
+
+该驱动预计以容器形式存在于一个可访问的镜像仓库中。
+
+**可选：Aeron C 媒体驱动**
+
+即将支持。
+
+
+Components & Containers
 
 **Benchmarks:**
 
@@ -368,18 +460,32 @@ This is expected to reside in a container called in an accessible repository.
 
 Support coming soon
 
-### Running the tests
+### 运行测试 Running the tests 
 
+1. 构建基准测试容器并推送到你的 Kubernetes 节点可拉取的镜像仓库：
+   Build the benchmarks container and push it to a repo that your K8s nodes can pull from:
 
-1. Build the benchmarks container and push it to a repo that your K8s nodes can pull from:
     ```
     docker build -t <your_repo>:aeron-benchmarks .
     docker push <your_repo>:aeron-benchmarks
     ```
-2. Update the following files with configuration from your test environment - you can skip scenario config you don't plan to test
+
+2. 使用你的测试环境配置更新以下文件 — 不打算测试的场景配置可以跳过。
+    
+   Update the following files with configuration from your test environment - you can skip scenario config you don't plan to test
+
+
    * `scripts/k8s/base/settings.yml`
    * `scripts/k8s/base/aeron-echo-dpdk/settings.yml`
    * `scripts/k8s/base/aeron-echo-java/settings.yml`
+
+3. 确保你的测试环境处于当前激活的 `kubecontext`。
+
+4. 如果你打算运行 DPDK 测试，确保你有启用 DPDK 的 Pod 或主机。该设置不在本说明范围内，请参见 [https://github.com/AdaptiveConsulting/k8s-dpdk-mgr](https://github.com/AdaptiveConsulting/k8s-dpdk-mgr) 获取设置示例。
+
+5. 确保你有权限向 Kubernetes 的某个命名空间写入，默认情况下工具会使用 `default` 命名空间。
+
+
 
 3. Make sure your test environment is the active `kubecontext`
 
@@ -388,14 +494,32 @@ Support coming soon
 5. Ensure you are permissioned to write to a K8s namespace, by default the tooling will use the `default` namespace.
 
 6. Run:
+   
    ```
    ./scripts/k8s-remote-testing.sh (-t aeron-echo-java | aeron-echo-dpdk ) ( -n my_namespace )
    ```
 
-## Other benchmarks (single machine)
+##  其他基准测试（单机） Other benchmarks (single machine)
+
+一组延迟基准测试，用于测试线程或进程间（IPC）通过 FIFO 数据结构和消息系统的往返时间（RTT）。
+
 Set of latency benchmarks testing round trip time (RTT) between threads or processes (IPC) via FIFO data structures and messaging systems.
 
+
 ### Java Benchmarks
+
+要运行 Java 基准测试，请在项目根目录执行 Gradle 脚本：
+
+```bash
+$ ./gradlew runJavaIpcBenchmarks
+```
+
+或者仅运行 Aeron 基准测试：
+
+```bash
+$ ./gradlew runAeronJavaIpcBenchmarks
+```
+
 
 To run the Java benchmarks execute the Gradle script in the base directory.
 
@@ -406,6 +530,42 @@ or just the Aeron benchmarks
     $ ./gradlew runAeronJavaIpcBenchmarks
 
 ### C++ Benchmarks
+
+要生成基准测试，请在项目根目录执行 `cppbuild` 脚本：
+
+```bash
+$ cppbuild/cppbuild
+```
+
+要运行基准测试，请执行各个基准测试二进制文件：
+
+```bash
+$ cppbuild/Release/binaries/baseline
+$ cppbuild/Release/binaries/aeronExclusiveIpcBenchmark
+$ cppbuild/Release/binaries/aeronIpcBenchmark
+$ cppbuild/Release/binaries/aeronExclusiveIpcNanomark
+$ cppbuild/Release/binaries/aeronIpcNanomark
+```
+
+**注意**：在 MacOS 上，需要为 Aeron 驱动共享库设置 `DYLD_LIBRARY_PATH`。例如：
+
+```bash
+$ env DYLD_LIBRARY_PATH=cppbuild/Release/aeron-prefix/src/aeron-build/lib cppbuild/Release/binaries/aeronIpcBenchmark
+```
+
+名称中带有 **Benchmark** 的二进制文件使用 Google Benchmark，仅显示平均时间；
+名称中带有 **Nanomark** 的二进制文件使用 Nanomark（包含在源码中），会显示完整的直方图。
+
+如果想指定 Aeron 的特定标签（版本），在调用 `cppbuild` 脚本时传入 `--aeron-git-tag` 参数。
+例如：
+
+```bash
+cppbuild/cppbuild --aeron-git-tag="1.42.0"
+```
+
+将使用 Aeron `1.42.0` 版本。
+
+
 
 To generate the benchmarks, execute the `cppbuild` script from the base directory.
 
